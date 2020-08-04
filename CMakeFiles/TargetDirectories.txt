@@ -1,0 +1,10 @@
+/home/renjira/Desktop/Projects/darknet/CMakeFiles/install.dir
+/home/renjira/Desktop/Projects/darknet/CMakeFiles/list_install_components.dir
+/home/renjira/Desktop/Projects/darknet/CMakeFiles/rebuild_cache.dir
+/home/renjira/Desktop/Projects/darknet/CMakeFiles/edit_cache.dir
+/home/renjira/Desktop/Projects/darknet/CMakeFiles/install/local.dir
+/home/renjira/Desktop/Projects/darknet/CMakeFiles/darknet.dir
+/home/renjira/Desktop/Projects/darknet/CMakeFiles/install/strip.dir
+/home/renjira/Desktop/Projects/darknet/CMakeFiles/uselib.dir
+/home/renjira/Desktop/Projects/darknet/CMakeFiles/uselib_track.dir
+/home/renjira/Desktop/Projects/darknet/CMakeFiles/dark.dir
