@@ -1,6 +1,5 @@
 from darknet_config import *
 from ctypes import *
-import os
 import glob
 import time
 from nms import nms
@@ -10,31 +9,43 @@ from multiprocessing import Process, Queue
 import json
 
 netMain = None
+netSecondary = None
 metaMain = None
 altNames = None
 
 def YOLO():
-
-    global metaMain, netMain, altNames, imageSize
-
-    # only for linux, uncomment if on windows and change config directly
-    changeWidth = "sed -i 's/width=[[:digit:]]\+/width=" + str(netSize) +"/g' " + configPath
-    changeHeight = "sed -i 's/height=[[:digit:]]\+/height=" + str(netSize) +"/g' " + configPath
-    content = os.popen(changeWidth).read()
-    content = os.popen(changeHeight).read()
+    global metaMain, netMain, netSecondary, altNames, imageSize
 
     if not os.path.exists(configPath):
         raise ValueError("Invalid config path `" +
                          os.path.abspath(configPath)+"`")
+    
+    changeNetSize(netSize, configPath)
+    if USE_MULTI:
+        changeNetSize(net2Size, config2Path)
+        if not os.path.exists(config2Path):
+            raise ValueError("Invalid config path `" + os.path.abspath(config2Path)+"`")
+
     if not os.path.exists(weightPath):
         raise ValueError("Invalid weight path `" +
                          os.path.abspath(weightPath)+"`")
+    if USE_TWO_WEIGHT:
+        if not os.path.exists(weight2Path):
+            raise ValueError("Invalid weight path `" + os.path.abspath(weight2Path)+"`")
+
     if not os.path.exists(metaPath):
         raise ValueError("Invalid data file path `" +
                          os.path.abspath(metaPath)+"`")
     if netMain is None:
         netMain = darknet.load_net_custom(configPath.encode(
             "ascii"), weightPath.encode("ascii"), 0, 1)  # batch size = 1
+    
+    if netSecondary is None:
+        if USE_TWO_WEIGHT:
+            netSecondary = darknet.load_net_custom(config2Path.encode("ascii"), weight2Path.encode("ascii"), 0, 1)
+        else:
+            netSecondary = darknet.load_net_custom(config2Path.encode("ascii"), weightPath.encode("ascii"), 0, 1)
+
     if metaMain is None:
         # print(metaPath.encode("ascii"))
         metaMain = darknet.load_meta(metaPath.encode("ascii"))
@@ -125,8 +136,12 @@ def doubleDetect(darknet_image, darknet_image_crop, frame_rgb):
     detections = []
     nmsdet = []
 # Sequential processing
-    detections += detect_sequential(netMain, metaMain, darknet_image, 0)
-    detections += detect_sequential(netMain, metaMain, darknet_image_crop, 1)
+    detections += detect_sequential(netSecondary, metaMain, darknet_image, 0)
+    # image = cvDrawBoxes(detections, img=frame_rgb, color="r")
+    if USE_MULTI:
+        detections += detect_sequential(netMain, metaMain, darknet_image_crop, 1)
+    else:
+        detections += detect_sequential(netMain, metaMain, darknet_image_crop, 1)
     dets = np.array(detections)
     if len(dets) > 0:
         boxes = dets[:,:4]
@@ -136,45 +151,15 @@ def doubleDetect(darknet_image, darknet_image_crop, frame_rgb):
             nmsdet.append(detections[i])
     # print("detection done in:",round(finish-start, 3),"s")
 
-# Multiprocessing
-    # q = Queue()
-    # processes = []
-    # p1 = Process(target=detect, args=(q, netMain, metaMain, darknet_image, 0))
-    # p2 = Process(target=detect, args=(q, netMain, metaMain, darknet_image_crop, 1))
-    # processes.append(p1)
-    # processes.append(p2)
-    # start = time.perf_counter()
-    # for process in processes:
-    #     process.start()
-
-    # for process in processes:
-    #     process.join()
-
-    # finish = time.perf_counter()
-    # print(round(finish-start,2))
-    # while not q.empty():
-    #     detections += (q.get())
-#
     # image = cvDrawBoxes(dets, img=frame_rgb, color="r")
     image = cvDrawBoxes(nmsdet, img=frame_rgb, color="g")
 
     return image,np.array(dets)
 
-# def detect(q, netMain, metaMain, darknet_image, pid): 
-    #     global imageSize
-    #     # det = darknet.detect_image(netMain, metaMain, darknet_image, thresh=0.3)
-    #     det = []
-    #     if pid:
-    #         det = relabelBBox(det, offsetX=int(imageSize[0]/2-256), \
-    #         offsetY=int((imageSize[1]/2-160)), imageSize=(512-128,160))
-    #     else:
-    #         det = relabelBBox(det, imageSize=imageSize)
-    #     q.put(det)
-
-def detect_sequential(netMain, metaMain, darknet_image, pid):
+def detect_sequential(network, metaMain, darknet_image, pid):
     global imageSize
     crop_y1,crop_y2,crop_x1,crop_x2 = getCropPoints()
-    det = darknet.detect_image(netMain, metaMain, darknet_image, thresh=.5, nms=0)
+    det = darknet.detect_image(network, metaMain, darknet_image, thresh=0.5, nms=0)
     if pid:
         det = relabelBBox(det, offsetX=crop_x1, \
         offsetY=crop_y1, imageSize=cropSize)

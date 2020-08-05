@@ -8,6 +8,14 @@ import numpy as np
 from darknet_config import *
 from threading import Thread
 from queue import Queue
+import os
+
+def changeNetSize(net_size, config_path):
+    # only for linux, comment if on windows and change config directly
+    changeWidth = "sed -i 's/width=[[:digit:]]\+/width=" + str(net_size) +"/g' " + config_path
+    changeHeight = "sed -i 's/height=[[:digit:]]\+/height=" + str(net_size) +"/g' " + config_path
+    content = os.popen(changeWidth).read()
+    content = os.popen(changeHeight).read()
 
 '''
     Function to Convert xywh to x1y1x2y2 (two points)
