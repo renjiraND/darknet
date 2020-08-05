@@ -59,21 +59,21 @@ def YOLO():
         except Exception:
             pass
     
-    datapath = 'data/img-test/'
-    className = 'pedestrian'
-    filenames = [os.path.splitext(os.path.basename(x))[0] for x in glob.glob(datapath + '*.jpg')]
-    predictions_out = {}
+    data_path = 'data/img-test/'
+    detection_path= 'data/detection/'
+    class_name = 'pedestrian'
+    file_names = [os.path.splitext(os.path.basename(x))[0] for x in glob.glob(data_path + '*.jpg')]
+    os.makedirs(os.path.dirname(detection_path), exist_ok=True)
 
     print("Starting the YOLO loop...")
-
 
     # Create an image we reuse for each detect
     darknet_image = darknet.make_image(darknet.network_width(netMain),darknet.network_height(netMain),3)
     darknet_image_crop = darknet.make_image(darknet.network_width(netMain),darknet.network_height(netMain),3)
     prev_time = time.time()
     
-    for filename in filenames:
-        ped = cv2.imread(datapath+filename+'.jpg')
+    for file_name in file_names:
+        ped = cv2.imread(data_path+file_name+'.jpg')
 
         ped_h, ped_w = ped.shape[:2]
         imageSize = (ped_w,ped_h)
@@ -113,11 +113,11 @@ def YOLO():
 
         # TODO: change data path to another folder
         if len(dets):
-            with open(datapath+filename+'.txt','w') as f:
+            with open(detection_path+file_name+'.txt','w') as f:
                 for det in dets:
                     x,y,w,h,prob = det
                     x1,y1,x2,y2 = convertBack(x,y,w,h)
-                    f.write('{} {} {} {} {} {}\n'.format(className, prob, x1,y1,x2,y2))
+                    f.write('{} {} {} {} {} {}\n'.format(class_name, prob, x1,y1,x2,y2))
                 f.close()
 
 def doubleDetect(darknet_image, darknet_image_crop, frame_rgb):
@@ -155,7 +155,7 @@ def doubleDetect(darknet_image, darknet_image_crop, frame_rgb):
     # while not q.empty():
     #     detections += (q.get())
 #
-    image = cvDrawBoxes(dets, img=frame_rgb, color="r")
+    # image = cvDrawBoxes(dets, img=frame_rgb, color="r")
     image = cvDrawBoxes(nmsdet, img=frame_rgb, color="g")
 
     return image,np.array(dets)
