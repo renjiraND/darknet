@@ -40,11 +40,12 @@ def YOLO():
         netMain = darknet.load_net_custom(configPath.encode(
             "ascii"), weightPath.encode("ascii"), 0, 1)  # batch size = 1
     
-    if netSecondary is None:
-        if USE_TWO_WEIGHT:
-            netSecondary = darknet.load_net_custom(config2Path.encode("ascii"), weight2Path.encode("ascii"), 0, 1)
-        else:
-            netSecondary = darknet.load_net_custom(config2Path.encode("ascii"), weightPath.encode("ascii"), 0, 1)
+    if USE_MULTI:
+        if netSecondary is None:
+            if USE_TWO_WEIGHT:
+                netSecondary = darknet.load_net_custom(config2Path.encode("ascii"), weight2Path.encode("ascii"), 0, 1)
+            else:
+                netSecondary = darknet.load_net_custom(config2Path.encode("ascii"), weightPath.encode("ascii"), 0, 1)
 
     if metaMain is None:
         # print(metaPath.encode("ascii"))
@@ -70,8 +71,9 @@ def YOLO():
         except Exception:
             pass
     
-    data_path = 'data/img-test/'
-    detection_path= 'data/detection/'
+    data_path = 'data/cfd/'
+    detection_path= 'data/cfd-detection/'
+    detection_images_path='data/cfd-det-img/'
     class_name = 'pedestrian'
     file_names = [os.path.splitext(os.path.basename(x))[0] for x in glob.glob(data_path + '*.jpg')]
     os.makedirs(os.path.dirname(detection_path), exist_ok=True)
@@ -81,9 +83,9 @@ def YOLO():
     # Create an image we reuse for each detect
     darknet_image = darknet.make_image(darknet.network_width(netMain),darknet.network_height(netMain),3)
     darknet_image_crop = darknet.make_image(darknet.network_width(netMain),darknet.network_height(netMain),3)
-    prev_time = time.time()
     
     for file_name in file_names:
+        prev_time = time.time()
         ped = cv2.imread(data_path+file_name+'.jpg')
 
         ped_h, ped_w = ped.shape[:2]
@@ -117,7 +119,7 @@ def YOLO():
         
 
         fps = (1/(time.time()-prev_time))
-        out = cv2.imwrite('output.jpg',image)
+        out = cv2.imwrite(detection_images_path+file_name+'.jpg',image)
         print("speed:", round(fps,3), "frame per second")
         # cv2.imshow("demo",image)
         # cv2.waitKey(0)
@@ -136,33 +138,40 @@ def doubleDetect(darknet_image, darknet_image_crop, frame_rgb):
     detections = []
     nmsdet = []
 # Sequential processing
-    detections += detect_sequential(netSecondary, metaMain, darknet_image, 0)
+    detections += detect_sequential(netMain, metaMain, darknet_image, 0)
     # image = cvDrawBoxes(detections, img=frame_rgb, color="r")
-    if USE_MULTI:
-        detections += detect_sequential(netMain, metaMain, darknet_image_crop, 1)
-    else:
-        detections += detect_sequential(netMain, metaMain, darknet_image_crop, 1)
-    dets = np.array(detections)
-    if len(dets) > 0:
-        boxes = dets[:,:4]
-        scores = dets[:,-1:]
-        idx = nms.boxes(boxes, scores, nms_algorithm=nms.fast.nms)
-        for i in idx:
-            nmsdet.append(detections[i])
+    if not USE_SINGLE:
+        if USE_MULTI:
+            detections += detect_sequential(netSecondary, metaMain, darknet_image_crop, 1)
+        else:
+            detections += detect_sequential(netSecondary, metaMain, darknet_image_crop, 1)
+        dets = np.array(detections)
+        if len(dets) > 0:
+            boxes = dets[:,:4]
+            scores = dets[:,-1:]
+            idx = nms.boxes(boxes, scores, nms_algorithm=nms.fast.nms)
+            for i in idx:
+                nmsdet.append(detections[i])
     # print("detection done in:",round(finish-start, 3),"s")
+    else:
+        nmsdet = detections
 
     # image = cvDrawBoxes(dets, img=frame_rgb, color="r")
     image = cvDrawBoxes(nmsdet, img=frame_rgb, color="g")
-
-    return image,np.array(dets)
+    return image,np.array(nmsdet)
 
 def detect_sequential(network, metaMain, darknet_image, pid):
     global imageSize
     crop_y1,crop_y2,crop_x1,crop_x2 = getCropPoints()
-    det = darknet.detect_image(network, metaMain, darknet_image, thresh=0.5, nms=0)
+    if USE_SINGLE:
+        # gunakan NMS bawaan
+        det = darknet.detect_image(network, metaMain, darknet_image, thresh=0.5)
+    else:
+        # tidak menggunakan NMS
+        det = darknet.detect_image(network, metaMain, darknet_image, thresh=0.5, nms=0)
+
     if pid:
-        det = relabelBBox(det, offsetX=crop_x1, \
-        offsetY=crop_y1, imageSize=cropSize)
+        det = relabelBBox(det, offsetX=crop_x1, offsetY=crop_y1, imageSize=cropSize)
     else:
         det = relabelBBox(det, imageSize=imageSize)
     return det

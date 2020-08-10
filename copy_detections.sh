@@ -1,0 +1,1 @@
+cp -r data/cfd-detection/ ../mAP/img-test/

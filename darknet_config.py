@@ -6,17 +6,18 @@ fileName = "./data/small_ped"+".mp4"
 cropSize = (500,400)
 
 # center offset
-horizontalOffset = 0
+horizontalOffset = 50
 verticalOffset = 0
 
 # multiconfig configurations
-USE_MULTI = True
-USE_TWO_WEIGHT = True
+USE_MULTI = 0
+USE_SINGLE = 1
+USE_TWO_WEIGHT = 0
 
 # CONFIG-01
-configPath = "./cfg/yolov4-custom.cfg"
-weightPath = "./weights/yolov4-custom_last.weights"
-netSize = 416
+configPath = "./cfg/yolov4-tiny.cfg"
+weightPath = "./weights/yolov4-tiny_best.weights"
+netSize = 128
 
 # CONFIG-02
 config2Path = "./cfg/yolov4-tiny2.cfg"
